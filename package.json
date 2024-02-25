@@ -1,0 +1,36 @@
+{
+  "name": "picoscratch-mint-web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^3.0.0",
+    "@sveltejs/kit": "^2.0.0",
+    "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "svelte": "^4.2.7",
+    "svelte-check": "^3.6.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.3"
+  },
+  "type": "module",
+  "dependencies": {
+    "@fontsource-variable/quicksand": "^5.0.16",
+    "@fontsource/source-code-pro": "^5.0.16",
+    "@robloche/chartjs-plugin-streaming": "^3.1.0",
+    "@sveltejs/adapter-static": "^3.0.1",
+    "chart.js": "^4.4.1",
+    "chartjs-adapter-moment": "^1.0.1",
+    "monaco-editor": "^0.45.0",
+    "svelte-chartjs": "^3.1.2",
+    "svelte-dnd-action": "^0.9.38",
+    "svelte-fluentui-icons": "^1.3.0",
+    "svelte-sonner": "^0.3.9",
+    "web-serial-polyfill": "^1.0.15"
+  }
+}

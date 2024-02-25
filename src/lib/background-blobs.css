@@ -1,0 +1,57 @@
+html::before,
+html::after {
+	content: "";
+	z-index: -1;
+	display: block;
+	position: fixed;
+	border-radius: 100vw;
+
+	width: 110vw;
+	height: 110vw;
+	
+	background: radial-gradient(50% 50% at 50% 50%, rgba(101, 85, 221, 0.5) 15%, rgba(101, 85, 221, 0) 100%);
+
+	animation: scaleIn 2s forwards ease;
+}
+
+@keyframes scaleIn {
+	from {
+		transform: scale(0);
+	}
+	to {
+		transform: scale(1);
+	}
+}
+
+/* positioning */
+html::before {
+	top: -60vh;
+	left: -60vw;
+
+	view-transition-name: bg-blob-1;
+}
+
+html::after {
+	bottom: -60vh;
+	right: -60vw;
+
+	view-transition-name: bg-blob-2;
+}
+
+@media (max-width: 600px) {
+	html::before,
+	html::after {
+		width: 200vw;
+		height: 200vw;
+	}
+
+	html::before {
+		top: -100vw;
+		left: -100vw;
+	}
+
+	html::after {
+		bottom: -100vw;
+		right: -100vw;
+	}
+}
