@@ -7,7 +7,7 @@
 	import { Chart } from "chart.js";
 	import "chartjs-adapter-moment";
 	import ChartStreaming from "@robloche/chartjs-plugin-streaming";
-	import { bus, chartData, chartsData } from "$lib/stores";
+	import { bus, chartData, chartsData, selectedDevices, devices, sensorInfo } from "$lib/stores";
 	import Card from "$lib/Card.svelte";
 	import { toast } from "svelte-sonner";
 	import { dndzone } from "svelte-dnd-action";
@@ -15,6 +15,8 @@
 	import PauseIcon from "svelte-fluentui-icons/icons/PauseCircle_Filled.svelte";
 	import PlayIcon from "svelte-fluentui-icons/icons/PlayCircle_Filled.svelte";
 	import TableIcon from "svelte-fluentui-icons/icons/DocumentTable_Filled.svelte"
+
+	const chartColors = ["#36a2eb", "#ff6384", "#4bc0c0", "#ff9f40", "#9966ff", "#ffcd56", "#c9cbcf"]
 
 	Chart.register(ChartStreaming);
 
@@ -27,43 +29,14 @@
 	 * @type {SensorPacket[]}
 	 */
 	let allData = [];
+	// /**
+	//  * @type {SensorPacket[]}
+	//  */
+	// let dataQueue = [];
 	/**
-	 * @type {SensorPacket[]}
+	 * @type {{[key: string]: SensorPacket}}
 	 */
-	let dataQueue = [];
-	/**
-	 * @type {SensorPacket}
-	 */
-	let currentSensorData;
-	/**
-	 * @type {{[key: string]: {min: number, max: number, unit: string}}}
-	 */
-	const sensorInfo = {
-		temp: {
-			min: 0,
-			max: 50,
-			unit: "°C",
-			friendlyName: "Temperatur"
-		},
-		tds: {
-			min: 0,
-			max: 200,
-			unit: "ppm",
-			friendlyName: "Wasserqualität"
-		},
-		co2: {
-			min: 0,
-			max: 2000,
-			unit: "ppm",
-			friendlyName: "CO<sub>2</sub>"
-		},
-		ph: {
-			min: 0,
-			max: 14,
-			unit: "pH",
-			friendlyName: "pH"
-		}
-	};
+	let currentSensorData = {};
 	let noDataCounter = 0;
 	/**
      * @type {any}
@@ -100,8 +73,10 @@
 	onMount(() => {
 		$bus.on("sensor", (/** @type {SensorPacket} */ data) => {
 			allData.push({time: new Date(), ...data});
-			dataQueue.push(data);
-			currentSensorData = data;
+			// dataQueue.push(data);
+			if("serial" in data) {
+				currentSensorData[data.serial] = data;
+			}
 			items = items;
 		});
 	});
@@ -156,22 +131,34 @@
 		return (value - min) / (max - min) * 100;
 	}
 
-	function sensorProgress(sensor) {
+	function sensorProgress(serial, sensor) {
 		const sensorData = paused ? beforePause : currentSensorData;
-		return minMaxToPercent(sensorInfo[sensor].min, sensorInfo[sensor].max, sensorData ? sensorData[sensor] : 0);
+		if(sensorData[serial] == null) return 0;
+		return minMaxToPercent(sensorInfo[sensor].min, sensorInfo[sensor].max, sensorData ? sensorData[serial][sensor] : 0);
 	}
 
-	function getSensorValueAsText(sensor) {
+	function getSensorValueAsText(serial, sensor) {
 		const sensorData = paused ? beforePause : currentSensorData;
 		if(!sensorData) return "";
-		if(sensorData[sensor] == null) return "";
-		console.log(sensorData[sensor] + " " + sensorInfo[sensor].unit);
-		return sensorData[sensor] + " " + sensorInfo[sensor].unit;
+		if(sensorData[serial] == null) return "";
+		if(sensorData[serial][sensor] == null) return "";
+		console.log(sensorData[serial][sensor] + " " + sensorInfo[sensor].unit);
+		return sensorData[serial][sensor] + " " + sensorInfo[sensor].unit;
 	}
 
 	function sensorAvailability(sensor) {
 		const sensorData = paused ? beforePause : currentSensorData;
-		return sensorData && sensorData[sensor] != null;
+		// return sensorData && sensorData[sensor] != null;
+		// If the sensor is available in any of the keys, return true
+		for(const serial in sensorData) {
+			if(sensorData[serial][sensor] != null) return true;
+		}
+		return false;
+	}
+
+	function sensorAvailableOnSerial(serial, sensor) {
+		const sensorData = paused ? beforePause : currentSensorData;
+		return sensorData[serial] && sensorData[serial][sensor] != null;
 	}
 
 	function anySensorAvailable(sensorData) {
@@ -206,9 +193,24 @@
 		if(index > 14) return phscale[14];
 		return phscale[index];
 	}
+
+	function getForegroundForBackgroundColor(color) {
+		// If it should be white or black
+		// Input: #RRGGBB
+		const r = parseInt(color.substr(0, 2), 16);
+		const g = parseInt(color.substr(2, 2), 16);
+		const b = parseInt(color.substr(4, 2), 16);
+		const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+		return brightness > 125 ? "black" : "white";
+	}
 </script>
 
-<div class="actions" style="margin-left: auto; margin-right: 15px; margin-bottom: 10px;">
+<div class="actions" style="margin-left: auto; margin-right: 15px; margin-bottom: 10px; display: flex; gap: 5px;">
+	<div class="deviceColors" style="display: flex; gap: 5px; flex-direction: column; flex-wrap: wrap;">
+		{#each $selectedDevices as serial, i}
+			<div class="deviceColor" style="border-radius: 5px; padding: 5px; background-color: {chartColors[i]}; color: {getForegroundForBackgroundColor(chartColors[i])};">{$devices.find(d => d.serial == serial).name}</div>
+		{/each}
+	</div>
 	<button on:click={saveCSV}>
 		<TableIcon size=50 />
 	</button>
@@ -237,13 +239,18 @@
 					</h2>
 					{#if sensorAvailability(item.sensor)}
 						{#if item.type == "bar"}
-							<div class="bar" style="height: 20px; width: 100%; background-color: #3e3e3e; border-radius: 10px; overflow: hidden;">
-								<div class="inner-bar" style="height: 100%; width: {sensorProgress(item.sensor)}%; background-color: {item.sensor != "ph" ? "rgba(101, 85, 221)" : "#" + floatToPhColor(currentSensorData["ph"])}; text-align: right; font-weight: bold;">
-									<span style="margin-right: 10px;">
-										{getSensorValueAsText(item.sensor)}
-									</span>
-								</div>
-							</div>
+							{#each $selectedDevices as serial}
+								{#if sensorAvailableOnSerial(serial, item.sensor)}
+									<span>{$devices.find(d => d.serial == serial).name}</span>
+									<div class="bar" style="height: 20px; width: 100%; background-color: #3e3e3e; border-radius: 10px; overflow: hidden;">
+										<div class="inner-bar" style="height: 100%; width: {sensorProgress(serial, item.sensor)}%; background-color: {item.sensor != "ph" ? "rgba(101, 85, 221)" : "#" + floatToPhColor(currentSensorData[serial]["ph"])}; text-align: right; font-weight: bold;">
+											<span style="margin-right: 10px;">
+												{getSensorValueAsText(serial, item.sensor)}
+											</span>
+										</div>
+									</div>
+								{/if}
+							{/each}
 						{:else if item.type == "chart"}
 							<Line data={$chartsData[item.sensor]} options={{
 								scales: {
@@ -253,7 +260,11 @@
 											delay: 2000,
 											onRefresh: (chart) => {
 												console.log(chart.data.datasets);
-												chart.data.datasets[0].data.push({x: Date.now(), y: currentSensorData[item.sensor]});
+												for(let i = 0; i < Object.keys(currentSensorData).length; i++) {
+													const serial = Object.keys(currentSensorData)[i];
+													chart.data.datasets[i].data.push({x: Date.now(), y: currentSensorData[serial][item.sensor]});
+												}
+												// chart.data.datasets[0].data.push({x: Date.now(), y: currentSensorData[item.sensor]});
 											}
 										},
 										beginAtZero: true,

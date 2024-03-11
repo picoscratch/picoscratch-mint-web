@@ -57,3 +57,35 @@ devices.subscribe((value) => {
 		window.localStorage.setItem("devices", JSON.stringify(value));
 	}
 });
+
+export const selectedDevices = writable([]);
+
+/**
+ * @type {{[key: string]: {min: number, max: number, unit: string, friendlyName: string}}}
+ */
+export const sensorInfo = {
+	temp: {
+		min: 0,
+		max: 50,
+		unit: "°C",
+		friendlyName: "Temperatur"
+	},
+	tds: {
+		min: 0,
+		max: 200,
+		unit: "ppm",
+		friendlyName: "Wasserqualität"
+	},
+	co2: {
+		min: 0,
+		max: 2000,
+		unit: "ppm",
+		friendlyName: "CO<sub>2</sub>"
+	},
+	ph: {
+		min: 0,
+		max: 14,
+		unit: "pH",
+		friendlyName: "pH"
+	}
+}

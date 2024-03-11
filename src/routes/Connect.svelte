@@ -2,7 +2,7 @@
 	import Card from "$lib/Card.svelte";
 	import Spinner from "$lib/Spinner.svelte";
 	import { WebSocketPacketBus, WebUSBPacketBus } from "$lib/connection/PacketBus";
-	import { busType, bus, connection, devices, serial as serialStore } from "$lib/stores";
+	import { busType, bus, connection, devices, serial as serialStore, selectedDevices, chartsData, sensorInfo } from "$lib/stores";
 	import USBIcon from "svelte-fluentui-icons/icons/USBPlug_Filled.svelte";
 	import WifiIcon from "svelte-fluentui-icons/icons/WiFi1_Filled.svelte";
 	import PlusIcon from "svelte-fluentui-icons/icons/Add_Filled.svelte";
@@ -16,6 +16,18 @@
 	let netCardVisible = false;
 
 	async function connectOverUSB() {
+		// @ts-ignore
+		$chartsData = {};
+		for(const sensor of Object.keys(sensorInfo)) {
+			// @ts-ignore
+			$chartsData[sensor] = {
+				datasets: [{
+					data: [],
+					borderWidth: 1
+				}]
+			};
+		}
+
 		if(!WebUSBPacketBus.supported()) {
 			toast.error("Ihr Browser unterstützt die WebSerial-API nicht, welche für die Verbindung mit dem Messgerät über USB benötigt wird. Bitte verwenden Sie einen anderen Webbrowser.");
 			return;
@@ -44,6 +56,17 @@
      * @param {string} serial
      */
 	function connectToDevice(serial) {
+		// @ts-ignore
+		$chartsData = {};
+		for(const sensor of Object.keys(sensorInfo)) {
+			// @ts-ignore
+			$chartsData[sensor] = {
+				datasets: [{
+					data: [],
+					borderWidth: 1
+				}]
+			};
+		}
 		try {
 			const websocket = new WebSocket("wss://mintsrv.picoscratch.de");
 			websocket.addEventListener("message", console.log);
@@ -79,6 +102,61 @@
 		}
 	}
 
+	function connectToDevices() {
+		// @ts-ignore
+		$chartsData = {};
+		for(const sensor of Object.keys(sensorInfo)) {
+			// @ts-ignore
+			$chartsData[sensor] = {
+				datasets: []
+			};
+
+			for(const serial of $selectedDevices) {
+				// @ts-ignore
+				$chartsData[sensor].datasets.push({
+					data: [],
+					borderWidth: 1
+				});
+			}
+		}
+
+		try {
+			const websocket = new WebSocket("wss://mintsrv.picoscratch.de");
+			websocket.addEventListener("message", console.log);
+			$bus = new WebSocketPacketBus(websocket);
+			$bus.on("error", (/** @type {{ error: number; }} */ error) => {
+				if(error.error && error.error == 1) {
+					toast.error("Es konnte keine Verbindung mit einem oder mehreren Messgeräten hergestellt werden. Bitte stellen Sie sicher, dass ALLE Messgeräte eingeschaltet sind und sich im Netzwerkmodus befinden.");
+					reset();
+					return;
+				}
+			});
+			$connection = true;
+			$busType = "wifi";
+			$serialStore = "multi";
+			typeCardVisible = false;
+			// @ts-ignore
+			window.bus = $bus;
+			websocket.addEventListener("open", () => {
+				for(const serial of $selectedDevices) {
+					websocket.send(JSON.stringify({
+						type: "serial",
+						serial
+					}));
+				}
+			});
+			websocket.addEventListener("close", () => {
+				toast.error("Verbindung zu einem oder mehrerer Messgeräte wurde unterbrochen.");
+				reset();
+			});
+		} catch(e) {
+			console.error(e);
+			toast.error("Es konnte keine Verbindung mit unserem Server hergestellt werden. Bitte versuchen Sie es später erneut.");
+			reset();
+			return;
+		}
+	}
+
 	function reset() {
 		$connection = false;
 		$busType = "";
@@ -94,6 +172,7 @@
 	let canvas;
 	let newDeviceName = "";
 	let newDeviceSN = "";
+	let useMulti = false;
 
 	function addDevice() {
 		if(newDeviceName === "" || newDeviceSN === "") {
@@ -182,9 +261,15 @@
 					<img src={MintImage} alt="PicoScratch MINT-Messgerät" width="200em">
 					<h2>{device.name}</h2>
 					<span style="color: #acacac;">{device.serial}</span>
-					<button class="btn-primary" style="margin-top: 5px; margin-left: auto; margin-right: auto;" on:click={() => {
-						connectToDevice(device.serial);
-					}}>Verbinden</button>
+					<button class={useMulti ? ($selectedDevices.includes(device.serial) ? "btn-primary" : "") : "btn-primary"} style="margin-top: 5px; margin-left: auto; margin-right: auto;" on:click={() => {
+						if(useMulti) {
+							if($selectedDevices.includes(device.serial)) {
+								$selectedDevices = $selectedDevices.filter((serial) => serial !== device.serial);
+							} else {
+								$selectedDevices = [...$selectedDevices, device.serial];
+							}
+						} else connectToDevice(device.serial);
+					}}>{useMulti ? ($selectedDevices.includes(device.serial) ? "Abwählen" : "Auswählen") : "Verbinden"}</button>
 				</Card>
 			{/each}
 			<Card style="width: auto; height: calc(355px - 24px); display: flex; justify-content: center; flex-direction: column;">
@@ -193,6 +278,19 @@
 					<h2>Neu</h2>
 				</button>
 			</Card>
+		</div>
+		<hr style="border: 2px #3e3e3e solid; border-radius: 10px;">
+		<div class="buttons">
+			<button on:click={() => {
+				useMulti = !useMulti;
+			}}>
+				{useMulti ? "Einzelndes Gerät verbinden" : "Mehrere Geräte verbinden"}
+			</button>
+			{#if useMulti}
+				<button class="btn-primary" on:click={() => {
+					connectToDevices();
+				}}>Verbinden</button>
+			{/if}
 		</div>
 	</Card>
 </div>
