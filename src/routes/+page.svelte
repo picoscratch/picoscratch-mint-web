@@ -206,11 +206,13 @@
 </script>
 
 <div class="actions" style="margin-left: auto; margin-right: 15px; margin-bottom: 10px; display: flex; gap: 5px;">
-	<div class="deviceColors" style="display: flex; gap: 5px; flex-direction: column; flex-wrap: wrap;">
-		{#each $selectedDevices as serial, i}
-			<div class="deviceColor" style="border-radius: 5px; padding: 5px; background-color: {chartColors[i]}; color: {getForegroundForBackgroundColor(chartColors[i])};">{$devices.find(d => d.serial == serial).name}</div>
-		{/each}
-	</div>
+	{#if $selectedDevices.length != 1}
+		<div class="deviceColors" style="display: flex; gap: 5px; flex-direction: column; flex-wrap: wrap;">
+			{#each $selectedDevices as serial, i}
+				<div class="deviceColor" style="border-radius: 5px; padding: 5px; background-color: {chartColors[i]}; color: {getForegroundForBackgroundColor(chartColors[i])};">{$devices.find(d => d.serial == serial).name}</div>
+			{/each}
+		</div>
+	{/if}
 	<button on:click={saveCSV}>
 		<TableIcon size=50 />
 	</button>
@@ -241,7 +243,9 @@
 						{#if item.type == "bar"}
 							{#each $selectedDevices as serial}
 								{#if sensorAvailableOnSerial(serial, item.sensor)}
-									<span>{$devices.find(d => d.serial == serial).name}</span>
+									{#if $selectedDevices.length != 1}
+										<span>{$devices.find(d => d.serial == serial).name}</span>
+									{/if}
 									<div class="bar" style="height: 20px; width: 100%; background-color: #3e3e3e; border-radius: 10px; overflow: hidden;">
 										<div class="inner-bar" style="height: 100%; width: {sensorProgress(serial, item.sensor)}%; background-color: {item.sensor != "ph" ? "rgba(101, 85, 221)" : "#" + floatToPhColor(currentSensorData[serial]["ph"])}; text-align: right; font-weight: bold;">
 											<span style="margin-right: 10px;">

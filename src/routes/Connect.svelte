@@ -56,6 +56,7 @@
      * @param {string} serial
      */
 	function connectToDevice(serial) {
+		$selectedDevices = [serial];
 		// @ts-ignore
 		$chartsData = {};
 		for(const sensor of Object.keys(sensorInfo)) {
