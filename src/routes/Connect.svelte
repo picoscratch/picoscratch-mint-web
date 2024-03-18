@@ -16,6 +16,7 @@
 	let netCardVisible = false;
 
 	async function connectOverUSB() {
+		$selectedDevices = ["unknown"];
 		// @ts-ignore
 		$chartsData = {};
 		for(const sensor of Object.keys(sensorInfo)) {
@@ -42,6 +43,15 @@
 		}, () => {
 			reset();
 		});
+
+		/**
+		 * @param packet {SensorPacket}
+		 */
+		function getSerial(packet) {
+			$bus.off("sensor", getSerial);
+			$selectedDevices = [packet.serial];
+		}
+		$bus.on("sensor", getSerial)
 		// @ts-ignore
 		window.bus = $bus;
 	}

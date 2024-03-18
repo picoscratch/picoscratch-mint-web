@@ -19,6 +19,7 @@ declare global {
 		temp: number;
 		ppm: number;
 		co2: number;
+		serial: string;
 	}
 }
 
